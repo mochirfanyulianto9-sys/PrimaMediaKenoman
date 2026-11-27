@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login RouterOS v6 — Prima Media</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 440px;
+      box-sizing: border-box;
+    }
+    h2 { margin: 0 0 6px; font-size: 20px; }
+    .sub { color: #94a3b8; font-size: 13px; margin-bottom: 18px; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #450a0a;
+      color: #fca5a5;
+      border: 1px solid #991b1b;
+      margin-bottom: 14px;
+    }
+    .badge.ok {
+      background: #052e16;
+      color: #86efac;
+      border-color: #166534;
+    }
+    label { display: block; font-size: 13px; margin-bottom: 4px; color: #cbd5e1; }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #f8fafc;
+      box-sizing: border-box;
+    }
+    .row { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+    button {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+    .log {
+      margin-top: 16px;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      color: #f87171;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Login RouterOS v6 (Direct)</h2>
+    <div class="sub">Tanpa bridge • Target default: 103.195.65.103</div>
+    <div id="statusBadge" class="badge">BELUM CONNECT</div>
+
+    <form id="loginForm">
+      <div class="row">
+        <div>
+          <label for="host">IP Public / Host</label>
+          <input id="host" type="text" value="103.195.65.103" required />
+        </div>
+        <div>
+          <label for="port">Port API v6</label>
+          <input id="port" type="number" value="8728" required />
+        </div>
+      </div>
+
+      <label for="username">Username MikroTik</label>
+      <input id="username" type="text" placeholder="admin" required />
+
+      <label for="password">Password MikroTik</label>
+      <input id="password" type="password" placeholder="Password" required />
+
+      <button type="submit">Connect ke RouterOS v6</button>
+    </form>
+
+    <div id="errorLog" class="log">[INFO] Menunggu percobaan koneksi ke RouterOS v6...</div>
+  </div>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    const badge = document.getElementById("statusBadge");
+    const logBox = document.getElementById("errorLog");
+
+    function setDisconnected(reasonText) {
+      badge.textContent = "BELUM CONNECT";
+      badge.classList.remove("ok");
+      logBox.style.color = "#f87171";
+      logBox.textContent = reasonText;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const host = document.getElementById("host").value.trim();
+      const port = document.getElementById("port").value.trim();
+      const user = document.getElementById("username").value.trim();
+
+      const lines = [
+        `[ERROR] Gagal login langsung dari browser ke RouterOS v6 (${host}:${port}) sebagai "${user}".`,
+        `[DIAGNOSA 1 - PROTOKOL] Browser tidak dapat membuka soket TCP API mentah RouterOS v6 (port 8728/8729) tanpa bridge/backend.`,
+        `[DIAGNOSA 2 - VERSI] RouterOS v6 tidak memiliki endpoint /rest/* (REST API hanya ada di RouterOS v7).`
+      ];
+
+      // Uji konektivitas HTTP/HTTPS ke host untuk melihat blokir Mixed Content / CORS / jaringan
+      const probeUrl = (window.location.protocol === "https:" ? "https://" : "http://") + host;
+      try {
+        await fetch(probeUrl, { mode: "no-cors", signal: AbortSignal.timeout(4000) });
+        lines.push(`[PROBE ${probeUrl}] Respons jaringan terdeteksi (mode no-cors), tetapi login API v6 tetap gagal karena browser tidak mendukung protokol TCP API v6.`);
+      } catch (err) {
+        lines.push(`[PROBE ${probeUrl}] Gagal dijangkau: ${err.name} - ${err.message}.`);
+        if (window.location.protocol === "https:") {
+          lines.push(`[CATATAN] Halaman berjalan di HTTPS; akses ke HTTP atau sertifikat SSL self-signed/firewall dapat memblokir koneksi.`);
+        }
+      }
+
+      setDisconnected(lines.join("\n\n"));
+    });
+  </script>
+</body>
+</html>
